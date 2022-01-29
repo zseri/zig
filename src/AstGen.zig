@@ -4103,6 +4103,7 @@ fn unionDeclInner(
         // and we afaik already have a type as a result, we don't need to wrap it
         // further and can omit the rvalue call.
         arg_inst = try gz.addPlNodePayloadIndex(.error_set_decl, es_node, es_payload_index);
+        if (arg_inst == .none) unreachable;
     }
 
     const body = block_scope.instructionsSlice();

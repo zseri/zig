@@ -5166,9 +5166,8 @@ static ZigType *ir_resolve_peer_types(IrAnalyze *ira, AstNode *source_node, ZigT
             continue;
         }
 
-        if (prev_type->id == ZigTypeIdEnum && cur_type->id == ZigTypeIdUnion &&
-            (cur_type->data.unionation.decl_node->data.container_decl.auto_enum || cur_type->data.unionation.decl_node->data.container_decl.init_arg_expr != nullptr))
-        {
+        // TODO: handle union(error)
+        if (prev_type->id == ZigTypeIdEnum && is_tagged_union(cur_type)) {
             if ((err = type_resolve(ira->codegen, cur_type, ResolveStatusZeroBitsKnown)))
                 return ira->codegen->builtin_types.entry_invalid;
             if (cur_type->data.unionation.tag_type == prev_type) {
@@ -5176,9 +5175,7 @@ static ZigType *ir_resolve_peer_types(IrAnalyze *ira, AstNode *source_node, ZigT
             }
         }
 
-        if (cur_type->id == ZigTypeIdEnum && prev_type->id == ZigTypeIdUnion &&
-            (prev_type->data.unionation.decl_node->data.container_decl.auto_enum || prev_type->data.unionation.decl_node->data.container_decl.init_arg_expr != nullptr))
-        {
+        if (cur_type->id == ZigTypeIdEnum && is_tagged_union(prev_type)) {
             if ((err = type_resolve(ira->codegen, prev_type, ResolveStatusZeroBitsKnown)))
                 return ira->codegen->builtin_types.entry_invalid;
             if (prev_type->data.unionation.tag_type == cur_type) {
@@ -6466,7 +6463,7 @@ static Stage1AirInst *ir_analyze_union_to_tag(IrAnalyze *ira, Scope *scope, AstN
         Stage1AirInst *target, ZigType *wanted_type)
 {
     assert(target->value->type->id == ZigTypeIdUnion);
-    assert(wanted_type->id == ZigTypeIdEnum);
+    assert(wanted_type->id == ZigTypeIdEnum || wanted_type->id == ZigTypeIdErrorSet);
     assert(wanted_type == target->value->type->data.unionation.tag_type);
 
     if (instr_is_comptime(target)) {
@@ -8009,7 +8006,9 @@ static Stage1AirInst *ir_analyze_cast(IrAnalyze *ira, Scope *scope, AstNode *sou
     }
 
     // cast from union to the enum type of the union
-    if (actual_type->id == ZigTypeIdUnion && wanted_type->id == ZigTypeIdEnum) {
+    if (actual_type->id == ZigTypeIdUnion &&
+        (wanted_type->id == ZigTypeIdEnum || wanted_type->id == ZigTypeIdErrorSet))
+    {
         if ((err = type_resolve(ira->codegen, actual_type, ResolveStatusZeroBitsKnown)))
             return ira->codegen->invalid_inst_gen;
 
@@ -8021,7 +8020,8 @@ static Stage1AirInst *ir_analyze_cast(IrAnalyze *ira, Scope *scope, AstNode *sou
     // enum to union which has the enum as the tag type, or
     // enum literal to union which has a matching enum as the tag type
     if (is_tagged_union(wanted_type) && (actual_type->id == ZigTypeIdEnum ||
-                actual_type->id == ZigTypeIdEnumLiteral))
+          actual_type->id == ZigTypeIdEnumLiteral ||
+          actual_type->id == ZigTypeIdErrorSet))
     {
         return ir_analyze_enum_to_union(ira, scope, source_node, value, wanted_type);
     }
@@ -15821,10 +15821,7 @@ static Stage1AirInst *ir_analyze_instruction_field_ptr(IrAnalyze *ira, Stage1Zir
                 }
                 return ir_analyze_decl_ref(ira, field_ptr_instruction->base.scope, field_ptr_instruction->base.source_node, tld);
             }
-            if (child_type->id == ZigTypeIdUnion &&
-                    (child_type->data.unionation.decl_node->data.container_decl.init_arg_expr != nullptr ||
-                    child_type->data.unionation.decl_node->data.container_decl.auto_enum))
-            {
+            if (is_tagged_union(child_type)) {
                 if ((err = type_resolve(ira->codegen, child_type, ResolveStatusSizeKnown)))
                     return ira->codegen->invalid_inst_gen;
                 TypeUnionField *field = find_union_type_field(child_type, field_name);
@@ -16716,7 +16713,7 @@ static Stage1AirInst *ir_analyze_union_tag(IrAnalyze *ira, Scope *scope, AstNode
     }
 
     ZigType *tag_type = value->value->type->data.unionation.tag_type;
-    assert(tag_type->id == ZigTypeIdEnum);
+    assert(tag_type->id == ZigTypeIdEnum || tag_type->id == ZigTypeIdErrorSet);
 
     if (instr_is_comptime(value)) {
         ZigValue *val = ir_resolve_const(ira, value, UndefBad);
@@ -16900,7 +16897,7 @@ static Stage1AirInst *ir_analyze_instruction_switch_target(IrAnalyze *ira,
             }
             ZigType *tag_type = target_type->data.unionation.tag_type;
             assert(tag_type != nullptr);
-            assert(tag_type->id == ZigTypeIdEnum);
+            assert(tag_type->id == ZigTypeIdEnum || tag_type->id == ZigTypeIdErrorSet);
             if (pointee_val) {
                 Stage1AirInst *result = ir_const(ira, switch_target_instruction->base.scope, switch_target_instruction->base.source_node, tag_type);
                 bigint_init_bigint(&result->value->data.x_enum_tag, &pointee_val->data.x_union.tag);
@@ -16972,7 +16969,7 @@ static Stage1AirInst *ir_analyze_instruction_switch_var(IrAnalyze *ira, Stage1Zi
     if (target_type->id == ZigTypeIdUnion) {
         ZigType *enum_type = target_type->data.unionation.tag_type;
         assert(enum_type != nullptr);
-        assert(enum_type->id == ZigTypeIdEnum);
+        assert(enum_type->id == ZigTypeIdEnum || enum_type->id == ZigTypeIdErrorSet);
         assert(instruction->prongs_len > 0);
 
         Stage1AirInst *first_prong_value = instruction->prongs_ptr[0]->child;
@@ -19579,6 +19576,7 @@ static ZigType *type_info_to_type(IrAnalyze *ira, Scope *scope, AstNode *source_
                 return ira->codegen->invalid_inst_gen->value->type;
             }
             if (tag_type != nullptr && tag_type->id != ZigTypeIdEnum) {
+                // TODO: doesn't fire for union(error). somethings wrong...
                 ir_add_error_node(ira, source_node, buf_sprintf(
                     "expected enum type, found '%s'", type_id_name(tag_type->id)));
                 return ira->codegen->invalid_inst_gen->value->type;
@@ -26384,9 +26382,19 @@ static Error ir_resolve_lazy_raw(AstNode *source_node, ZigValue *val) {
                    && err_set_type->data.unionation.tag_type
                    && err_set_type->data.unionation.tag_type->id == ZigTypeIdErrorSet))
             {
+                const ZigType* tgt = err_set_type->data.unionation.tag_type;
+                const char * tgt_s;
+                if (tgt) {
+                    tgt_s = type_id_name(tgt->id);
+                } else {
+                    tgt_s = "(none)";
+                }
                 ir_add_error_node(ira, lazy_err_union_type->err_set_type->source_node,
-                    buf_sprintf("expected error set type, found type '%s'",
-                        buf_ptr(&err_set_type->name)));
+                    buf_sprintf("expected error set type, found type '%s' (type id %s // inner tag %s)",
+                        buf_ptr(&err_set_type->name),
+                        type_id_name(err_set_type->id),
+                        tgt_s
+                    ));
                 return ErrorSemanticAnalyzeFail;
             }
 
