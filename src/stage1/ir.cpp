@@ -19575,7 +19575,8 @@ static ZigType *type_info_to_type(IrAnalyze *ira, Scope *scope, AstNode *source_
             if (tag_type != nullptr && type_is_invalid(tag_type)) {
                 return ira->codegen->invalid_inst_gen->value->type;
             }
-            if (tag_type != nullptr && tag_type->id != ZigTypeIdEnum) {
+            if (tag_type != nullptr && tag_type->id != ZigTypeIdEnum && tag_type->id != ZigTypeIdErrorSet) {
+                // it seems that for union(error) -> tag_type == nullptr. this is wrong.
                 // TODO: doesn't fire for union(error). somethings wrong...
                 ir_add_error_node(ira, source_node, buf_sprintf(
                     "expected enum type, found '%s'", type_id_name(tag_type->id)));
