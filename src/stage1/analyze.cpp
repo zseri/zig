@@ -3282,12 +3282,16 @@ static Error resolve_union_zero_bits(CodeGen *g, ZigType *union_type) {
     HashMap<BigInt, AstNode *, bigint_hash, bigint_eql> occupied_tag_values = {};
 
     bool is_auto_enum; // union(enum) or union(enum(expr))
-    bool is_explicit_enum; // union(expr)
+    bool is_explicit_enum; // union(expr) or union(error)
     AstNode *enum_type_node; // expr in union(enum(expr)) or union(expr)
     if (decl_node->type == NodeTypeContainerDecl) {
         is_auto_enum = decl_node->data.container_decl.auto_enum;
         is_explicit_enum = decl_node->data.container_decl.init_arg_expr != nullptr;
         enum_type_node = decl_node->data.container_decl.init_arg_expr;
+        if (decl_node->data.container_decl.auto_error) {
+            is_auto_enum = false;
+            is_explicit_enum = true;
+        }
     } else {
         is_auto_enum = false;
         is_explicit_enum = union_type->data.unionation.tag_type != nullptr;
@@ -3303,6 +3307,15 @@ static Error resolve_union_zero_bits(CodeGen *g, ZigType *union_type) {
     bool create_enum_type = is_auto_enum || (!is_explicit_enum && want_safety);
     bool *covered_enum_fields;
     bool *is_zero_bits = heap::c_allocator.allocate<bool>(field_count);
+
+    if (decl_node->type == NodeTypeContainerDecl && decl_node->data.container_decl.auto_error) {
+        assert(!is_auto_enum);
+        assert(is_explicit_enum);
+        assert(!enum_type_node);
+        assert(!create_enum_type);
+        //assert(union_type->data.unionation.tag_type != nullptr);
+    }
+
     if (create_enum_type) {
         occupied_tag_values.init(field_count);
 
@@ -3360,7 +3373,7 @@ static Error resolve_union_zero_bits(CodeGen *g, ZigType *union_type) {
     } else if (enum_type_node != nullptr) {
         tag_type = analyze_type_expr(g, scope, enum_type_node);
     } else {
-        if (decl_node->type == NodeTypeContainerDecl) {
+        if (decl_node->type == NodeTypeContainerDecl && !decl_node->data.container_decl.auto_error) {
             tag_type = nullptr;
         } else {
             tag_type = union_type->data.unionation.tag_type;
@@ -3382,6 +3395,15 @@ static Error resolve_union_zero_bits(CodeGen *g, ZigType *union_type) {
             return err;
         }
         covered_enum_fields = heap::c_allocator.allocate<bool>(tag_type->data.enumeration.src_field_count);
+    } else if (union_type->data.unionation.tag_type != nullptr) {
+        add_node_error(g, decl_node,
+            buf_sprintf("analysis swallowed union tag type '%s'", buf_ptr(&union_type->data.unionation.tag_type->name)));
+        return ErrorSemanticAnalyzeFail;
+    } else if (decl_node->type == NodeTypeContainerDecl && decl_node->data.container_decl.auto_error) {
+        assert(!create_enum_type && enum_type_node == nullptr);
+        add_node_error(g, decl_node,
+            buf_sprintf("analysis witnessed union(error) without proper tag"));
+        return ErrorSemanticAnalyzeFail;
     }
     union_type->data.unionation.tag_type = tag_type;
 
