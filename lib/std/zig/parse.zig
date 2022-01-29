@@ -3248,7 +3248,7 @@ const Parser = struct {
     /// ContainerDeclType
     ///     <- KEYWORD_struct
     ///      / KEYWORD_enum (LPAREN Expr RPAREN)?
-    ///      / KEYWORD_union (LPAREN (KEYWORD_enum (LPAREN Expr RPAREN)? / Expr) RPAREN)?
+    ///      / KEYWORD_union (LPAREN (KEYWORD_enum (LPAREN Expr RPAREN)? / KEYWORD_error / Expr) RPAREN)?
     ///      / KEYWORD_opaque
     fn parseContainerDeclAuto(p: *Parser) !Node.Index {
         const main_token = p.nextToken();
@@ -3319,6 +3319,24 @@ const Parser = struct {
                                 });
                             }
                         }
+                    } else if (p.eatToken(.keyword_error)) |_| {
+                        _ = try p.expectToken(.r_paren);
+
+                        _ = try p.expectToken(.l_brace);
+                        const members = try p.parseContainerMembers();
+                        _ = try p.expectToken(.r_brace);
+                        const span = try members.toSpan(p);
+                        return p.addNode(.{
+                            .tag = switch (members.trailing) {
+                                true => .tagged_union_error_trailing,
+                                false => .tagged_union_error,
+                            },
+                            .main_token = main_token,
+                            .data = .{
+                                .lhs = span.start,
+                                .rhs = span.end,
+                            },
+                        });
                     } else {
                         const expr = try p.expectExpr();
                         _ = try p.expectToken(.r_paren);

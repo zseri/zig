@@ -569,6 +569,11 @@ pub fn firstToken(tree: Ast, node: Node.Index) TokenIndex {
             return main_token - end_offset;
         },
 
+        .tagged_union_error,
+        .tagged_union_error_trailing,
+        // `packed` and `extern` don't make sense in front of an `union(error)`
+        => return main_tokens[n] - end_offset,
+
         .ptr_type_aligned,
         .ptr_type_sentinel,
         .ptr_type,
@@ -821,6 +826,7 @@ pub fn lastToken(tree: Ast, node: Node.Index) TokenIndex {
         .block,
         .container_decl,
         .tagged_union,
+        .tagged_union_error,
         .builtin_call,
         => {
             assert(datas[n].rhs - datas[n].lhs > 0);
@@ -832,6 +838,7 @@ pub fn lastToken(tree: Ast, node: Node.Index) TokenIndex {
         .block_semicolon,
         .container_decl_trailing,
         .tagged_union_trailing,
+        .tagged_union_error_trailing,
         .builtin_call_comma,
         => {
             assert(datas[n].rhs - datas[n].lhs > 0);
@@ -1699,6 +1706,12 @@ pub fn taggedUnionEnumTag(tree: Ast, node: Node.Index) full.ContainerDecl {
         .members = tree.extra_data[members_range.start..members_range.end],
         .arg = data.lhs,
     });
+}
+
+pub fn taggedUnionError(tree: Ast, node: Node.Index) full.ContainerDecl {
+    _ = tree;
+    _ = node;
+    @panic("union(error) rendering unimplemented");
 }
 
 pub fn switchCaseOne(tree: Ast, node: Node.Index) full.SwitchCase {
@@ -2923,6 +2936,11 @@ pub const Node = struct {
         /// Same as tagged_union_enum_tag but there is known to be a trailing comma
         /// or semicolon before the rbrace.
         tagged_union_enum_tag_trailing,
+        /// `union(error) {}`. `sub_list[lhs..rhs]`.
+        tagged_union_error,
+        /// Same as tagged_union_error but there is known to be a trailing comma
+        /// or semicolon before the rbrace
+        tagged_union_error_trailing,
         /// `a: lhs = rhs,`. lhs and rhs can be omitted.
         /// main_token is the field name identifier.
         /// lastToken() does not include the possible trailing comma.

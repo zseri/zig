@@ -1114,6 +1114,7 @@ struct AstNodeContainerDecl {
     ContainerLayout layout;
 
     bool auto_enum, is_root; // union(enum)
+    bool auto_error; // union(error)
 };
 
 struct AstNodeErrorSetField {

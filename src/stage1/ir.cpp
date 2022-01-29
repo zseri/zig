@@ -6053,6 +6053,8 @@ static ZigType *ir_resolve_error_set_type(IrAnalyze *ira, AstNode *op_source, St
     if (type_is_invalid(type_value->value->type))
         return ira->codegen->builtin_types.entry_invalid;
 
+    // TODO: add support for union(error)
+
     if (type_value->value->type->id != ZigTypeIdMetaType) {
         ErrorMsg *msg = ir_add_error_node(ira, type_value->source_node,
                 buf_sprintf("expected error set type, found '%s'", buf_ptr(&type_value->value->type->name)));

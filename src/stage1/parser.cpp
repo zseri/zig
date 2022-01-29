@@ -2904,7 +2904,7 @@ static AstNode *ast_parse_container_decl_auto(ParseContext *pc) {
 // ContainerDeclType
 //     <- KEYWORD_struct
 //      / KEYWORD_enum (LPAREN Expr RPAREN)?
-//      / KEYWORD_union (LPAREN (KEYWORD_enum (LPAREN Expr RPAREN)? / Expr) RPAREN)?
+//      / KEYWORD_union (LPAREN (KEYWORD_enum (LPAREN Expr RPAREN)? / KEYWORD_error / Expr) RPAREN)?
 //      / KEYWORD_opaque
 static AstNode *ast_parse_container_decl_type(ParseContext *pc) {
     TokenIndex first = eat_token_if(pc, TokenIdKeywordStruct);
@@ -2940,6 +2940,7 @@ static AstNode *ast_parse_container_decl_type(ParseContext *pc) {
     if (first != 0) {
         AstNode *init_arg_expr = nullptr;
         bool auto_enum = false;
+        bool auto_error = false;
         if (eat_token_if(pc, TokenIdLParen) != 0) {
             if (eat_token_if(pc, TokenIdKeywordEnum) != 0) {
                 auto_enum = true;
@@ -2947,6 +2948,9 @@ static AstNode *ast_parse_container_decl_type(ParseContext *pc) {
                     init_arg_expr = ast_expect(pc, ast_parse_expr);
                     expect_token(pc, TokenIdRParen);
                 }
+            } else if (eat_token_if(pc, TokenIdKeywordError) != 0) {
+                auto_enum = true;
+                auto_error = true;
             } else {
                 init_arg_expr = ast_expect(pc, ast_parse_expr);
             }
@@ -2957,6 +2961,7 @@ static AstNode *ast_parse_container_decl_type(ParseContext *pc) {
         AstNode *res = ast_create_node(pc, NodeTypeContainerDecl, first);
         res->data.container_decl.init_arg_expr = init_arg_expr;
         res->data.container_decl.auto_enum = auto_enum;
+        res->data.container_decl.auto_error = auto_error;
         res->data.container_decl.kind = ContainerKindUnion;
         return res;
     }

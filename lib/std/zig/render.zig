@@ -577,6 +577,10 @@ fn renderExpression(gpa: Allocator, ais: *Ais, tree: Ast, node: Ast.Node.Index, 
         .tagged_union_enum_tag_trailing,
         => return renderContainerDecl(gpa, ais, tree, node, tree.taggedUnionEnumTag(node), space),
 
+        .tagged_union_error,
+        .tagged_union_error_trailing,
+        => return renderContainerDecl(gpa, ais, tree, node, tree.taggedUnionError(node), space),
+
         .error_set_decl => {
             const error_token = main_tokens[node];
             const lbrace = error_token + 1;
