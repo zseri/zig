@@ -6069,7 +6069,10 @@ static ZigType *ir_resolve_error_set_type(IrAnalyze *ira, AstNode *op_source, St
 
     assert(const_val->data.x_type != nullptr);
     ZigType *result_type = const_val->data.x_type;
-    if (result_type->id != ZigTypeIdErrorSet) {
+    if (result_type->id != ZigTypeIdErrorSet
+      && !(result_type->id == ZigTypeIdUnion
+           && result_type->data.unionation.tag_type
+           && result_type->data.unionation.tag_type->id == ZigTypeIdErrorSet)) {
         ErrorMsg *msg = ir_add_error_node(ira, type_value->source_node,
                 buf_sprintf("expected error set type, found type '%s'", buf_ptr(&result_type->name)));
         add_error_note(ira->codegen, msg, op_source,
@@ -26376,7 +26379,11 @@ static Error ir_resolve_lazy_raw(AstNode *source_node, ZigValue *val) {
             if (type_is_invalid(payload_type))
                 return ErrorSemanticAnalyzeFail;
 
-            if (err_set_type->id != ZigTypeIdErrorSet) {
+            if (err_set_type->id != ZigTypeIdErrorSet
+              && !(err_set_type->id == ZigTypeIdUnion
+                   && err_set_type->data.unionation.tag_type
+                   && err_set_type->data.unionation.tag_type->id == ZigTypeIdErrorSet))
+            {
                 ir_add_error_node(ira, lazy_err_union_type->err_set_type->source_node,
                     buf_sprintf("expected error set type, found type '%s'",
                         buf_ptr(&err_set_type->name)));

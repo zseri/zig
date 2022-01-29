@@ -560,6 +560,8 @@ pub fn firstToken(tree: Ast, node: Node.Index) TokenIndex {
         .tagged_union_two_trailing,
         .tagged_union_enum_tag,
         .tagged_union_enum_tag_trailing,
+        .tagged_union_error,
+        .tagged_union_error_trailing,
         => {
             const main_token = main_tokens[n];
             switch (token_tags[main_token - 1]) {
@@ -568,11 +570,6 @@ pub fn firstToken(tree: Ast, node: Node.Index) TokenIndex {
             }
             return main_token - end_offset;
         },
-
-        .tagged_union_error,
-        .tagged_union_error_trailing,
-        // `packed` and `extern` don't make sense in front of an `union(error)`
-        => return main_tokens[n] - end_offset,
 
         .ptr_type_aligned,
         .ptr_type_sentinel,
@@ -1709,9 +1706,16 @@ pub fn taggedUnionEnumTag(tree: Ast, node: Node.Index) full.ContainerDecl {
 }
 
 pub fn taggedUnionError(tree: Ast, node: Node.Index) full.ContainerDecl {
-    _ = tree;
-    _ = node;
-    @panic("union(error) rendering unimplemented");
+    assert(tree.nodes.items(.tag)[node] == .tagged_union_error or
+        tree.nodes.items(.tag)[node] == .tagged_union_error_trailing);
+    const data = tree.nodes.items(.data)[node];
+    const main_token = tree.nodes.items(.main_token)[node];
+    return tree.fullContainerDecl(.{
+        .main_token = main_token,
+        .enum_token = null,
+        .members = tree.extra_data[data.lhs..data.rhs],
+        .arg = main_token + 2, // error
+    });
 }
 
 pub fn switchCaseOne(tree: Ast, node: Node.Index) full.SwitchCase {

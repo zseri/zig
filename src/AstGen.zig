@@ -3958,6 +3958,7 @@ fn unionDeclInner(
     const astgen = gz.astgen;
     const gpa = astgen.gpa;
     const tree = astgen.tree;
+    const token_tags = tree.tokens.items(.tag);
     const node_tags = tree.nodes.items(.tag);
 
     var namespace: Scope.Namespace = .{
@@ -3986,7 +3987,8 @@ fn unionDeclInner(
     const decl_count = try astgen.scanDecls(&namespace, members);
     const field_count = @intCast(u32, members.len - decl_count);
 
-    const arg_inst: Zir.Inst.Ref = if (arg_node != 0)
+    const arg_error_set = arg_node != 0 and token_tags[arg_node] == .keyword_error;
+    var arg_inst: Zir.Inst.Ref = if (arg_node != 0 and !arg_error_set)
         try typeExpr(&block_scope, &namespace.base, arg_node)
     else
         .none;
@@ -3995,6 +3997,16 @@ fn unionDeclInner(
     const max_field_size = 5;
     var wip_members = try WipMembers.init(gpa, &astgen.scratch, decl_count, field_count, bits_per_field, max_field_size);
     defer wip_members.deinit();
+
+    const error_set_payload_index = if (arg_error_set)
+        try reserveExtra(astgen, @typeInfo(Zir.Inst.ErrorSetDecl).Struct.fields.len)
+    else
+        null;
+
+    if (arg_error_set) {
+        // error set fields
+        try astgen.extra.ensureUnusedCapacity(gpa, 2 * field_count);
+    }
 
     for (members) |member_node| {
         const member = switch (try containerMember(gz, &namespace.base, &wip_members, member_node)) {
@@ -4010,6 +4022,13 @@ fn unionDeclInner(
 
         const doc_comment_index = try astgen.docCommentAsString(member.firstToken());
         wip_members.appendToField(doc_comment_index);
+
+        if (arg_error_set) {
+            // add elements for error set payload
+            // not perfectly efficient, but at least we reuse the string indices
+            astgen.extra.appendAssumeCapacity(field_name);
+            astgen.extra.appendAssumeCapacity(doc_comment_index);
+        }
 
         const have_type = member.ast.type_expr != 0;
         const have_align = member.ast.align_expr != 0;
@@ -4059,6 +4078,7 @@ fn unionDeclInner(
                     },
                 );
             }
+            if (arg_error_set) unreachable;
             const tag_value = try expr(&block_scope, &block_scope.base, .{ .ty = arg_inst }, member.ast.value_expr);
             wip_members.appendToField(@enumToInt(tag_value));
         }
@@ -4069,6 +4089,20 @@ fn unionDeclInner(
 
     if (!block_scope.isEmpty()) {
         _ = try block_scope.addBreak(.break_inline, decl_inst, .void_value);
+    }
+
+    if (arg_error_set) {
+        // build the error set as tag_type
+        const es_payload_index = error_set_payload_index.?;
+        setExtra(astgen, es_payload_index, Zir.Inst.ErrorSetDecl{
+            .fields_len = field_count,
+        });
+        // TODO: node or arg_node?
+        const es_node = node;
+        // because we would just want a typeExpr here, and typeExpr uses .coerced_ty,
+        // and we afaik already have a type as a result, we don't need to wrap it
+        // further and can omit the rvalue call.
+        arg_inst = try gz.addPlNodePayloadIndex(.error_set_decl, es_node, es_payload_index);
     }
 
     const body = block_scope.instructionsSlice();

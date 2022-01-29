@@ -1481,7 +1481,7 @@ struct ZigTypeUnion {
     TypeUnionField *fields;
     ScopeDecls *decls_scope;
     HashMap<Buf *, TypeUnionField *, buf_hash, buf_eql_buf> fields_by_name;
-    ZigType *tag_type; // always an enum or null
+    ZigType *tag_type; // always an enum or `error` or null
     LLVMTypeRef union_llvm_type;
     TypeUnionField *most_aligned_union_member;
     size_t gen_union_index;
