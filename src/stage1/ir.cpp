@@ -4011,6 +4011,16 @@ static bool is_tagged_union(ZigType *type) {
         type->data.unionation.decl_node->data.container_decl.init_arg_expr != nullptr);
 }
 
+static bool is_error_set_alike(ZigType *type) {
+    if (type->id == ZigTypeIdErrorSet)
+        return true;
+    if (type->id == ZigTypeIdUnion
+        && type->data.unionation.tag_type
+        && type->data.unionation.tag_type->id == ZigTypeIdErrorSet)
+        return true;
+    return false;
+}
+
 static void populate_error_set_table(ErrorTableEntry **errors, ZigType *set) {
     assert(set->id == ZigTypeIdErrorSet);
     for (uint32_t i = 0; i < set->data.error_set.err_count; i += 1) {
@@ -6066,10 +6076,7 @@ static ZigType *ir_resolve_error_set_type(IrAnalyze *ira, AstNode *op_source, St
 
     assert(const_val->data.x_type != nullptr);
     ZigType *result_type = const_val->data.x_type;
-    if (result_type->id != ZigTypeIdErrorSet
-      && !(result_type->id == ZigTypeIdUnion
-           && result_type->data.unionation.tag_type
-           && result_type->data.unionation.tag_type->id == ZigTypeIdErrorSet)) {
+    if (!is_error_set_alike(result_type)) {
         ErrorMsg *msg = ir_add_error_node(ira, type_value->source_node,
                 buf_sprintf("expected error set type, found type '%s'", buf_ptr(&result_type->name)));
         add_error_note(ira->codegen, msg, op_source,
@@ -26378,11 +26385,7 @@ static Error ir_resolve_lazy_raw(AstNode *source_node, ZigValue *val) {
             if (type_is_invalid(payload_type))
                 return ErrorSemanticAnalyzeFail;
 
-            if (err_set_type->id != ZigTypeIdErrorSet
-              && !(err_set_type->id == ZigTypeIdUnion
-                   && err_set_type->data.unionation.tag_type
-                   && err_set_type->data.unionation.tag_type->id == ZigTypeIdErrorSet))
-            {
+            if (!is_error_set_alike(err_set_type)) {
                 const ZigType* tgt = err_set_type->data.unionation.tag_type;
                 const char * tgt_s;
                 if (tgt) {
