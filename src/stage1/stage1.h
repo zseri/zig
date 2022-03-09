@@ -67,6 +67,7 @@ enum Os {
     OsIOS,
     OsKFreeBSD,
     OsLinux,
+    OsLFOS,
     OsLv2,        // PS3
     OsMacOSX,
     OsNetBSD,

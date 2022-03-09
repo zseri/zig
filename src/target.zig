@@ -285,6 +285,7 @@ pub fn osToLLVM(os_tag: std.Target.Os.Tag) llvm.OSType {
         .ios => .IOS,
         .kfreebsd => .KFreeBSD,
         .linux => .Linux,
+        .lfos => .LFOS,
         .lv2 => .Lv2,
         .macos => .MacOSX,
         .netbsd => .NetBSD,

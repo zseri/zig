@@ -1128,6 +1128,7 @@ pub const OSType = enum(c_int) {
     IOS,
     KFreeBSD,
     Linux,
+    LFOS,
     Lv2,
     MacOSX,
     NetBSD,

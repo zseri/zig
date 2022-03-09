@@ -397,6 +397,7 @@ enum ZigLLVM_OSType {
     ZigLLVM_IOS,
     ZigLLVM_KFreeBSD,
     ZigLLVM_Linux,
+    ZigLLVM_LFOS,
     ZigLLVM_Lv2,        // PS3
     ZigLLVM_MacOSX,
     ZigLLVM_NetBSD,

@@ -1422,6 +1422,7 @@ static_assert((Triple::OSType)ZigLLVM_IOS == Triple::IOS, "");
 // See https://github.com/ziglang/zig/issues/2076
 //static_assert((Triple::OSType)ZigLLVM_KFreeBSD == Triple::KFreeBSD, "");
 static_assert((Triple::OSType)ZigLLVM_Linux == Triple::Linux, "");
+static_assert((Triple::OSType)ZigLLVM_LFOS == Triple::LFOS, "");
 static_assert((Triple::OSType)ZigLLVM_Lv2 == Triple::Lv2, "");
 static_assert((Triple::OSType)ZigLLVM_MacOSX == Triple::MacOSX, "");
 static_assert((Triple::OSType)ZigLLVM_NetBSD == Triple::NetBSD, "");

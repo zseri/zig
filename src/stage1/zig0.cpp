@@ -79,6 +79,8 @@ static Os get_zig_os_type(ZigLLVM_OSType os_type) {
             return OsKFreeBSD;
         case ZigLLVM_Linux:
             return OsLinux;
+        case ZigLLVM_LFOS:
+             return OsLFOS;
         case ZigLLVM_Lv2:
             return OsLv2;
         case ZigLLVM_Darwin:

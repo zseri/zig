@@ -96,6 +96,7 @@ static const Os os_list[] = {
     OsIOS,
     OsKFreeBSD,
     OsLinux,
+    OsLFOS,
     OsLv2,        // PS3
     OsMacOSX,
     OsNetBSD,
@@ -241,6 +242,8 @@ ZigLLVM_OSType get_llvm_os_type(Os os_type) {
             return ZigLLVM_KFreeBSD;
         case OsLinux:
             return ZigLLVM_Linux;
+        case OsLFOS:
+            return ZigLLVM_LFOS;
         case OsLv2:
             return ZigLLVM_Lv2;
         case OsMacOSX:
@@ -316,6 +319,7 @@ const char *target_os_name(Os os_type) {
         case OsIOS:
         case OsKFreeBSD:
         case OsLinux:
+        case OsLFOS:
         case OsLv2:        // PS3
         case OsMacOSX:
         case OsNetBSD:
@@ -670,6 +674,7 @@ uint32_t target_c_type_size_in_bits(const ZigTarget *target, CIntType id) {
             }
             zig_unreachable();
         case OsLinux:
+        case OsLFOS:
         case OsMacOSX:
         case OsFreeBSD:
         case OsNetBSD:
@@ -990,6 +995,7 @@ ZigLLVM_EnvironmentType target_default_abi(ZigLLVM_ArchType arch, Os os) {
         case OsWASI:
         case OsEmscripten:
             return ZigLLVM_Musl;
+        case OsLFOS:
         case OsOpenCL:
         case OsGLSL450:
         case OsVulkan:

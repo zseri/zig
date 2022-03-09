@@ -24,6 +24,7 @@ pub const Target = struct {
             ios,
             kfreebsd,
             linux,
+            lfos,
             lv2,
             macos,
             netbsd,
@@ -233,6 +234,7 @@ pub const Target = struct {
                     .cloudabi,
                     .fuchsia,
                     .kfreebsd,
+                    .lfos,
                     .lv2,
                     .zos,
                     .haiku,
@@ -410,6 +412,7 @@ pub const Target = struct {
                 .cloudabi,
                 .fuchsia,
                 .kfreebsd,
+                .lfos,
                 .lv2,
                 .zos,
                 .minix,
@@ -491,6 +494,7 @@ pub const Target = struct {
                 .ananas,
                 .cloudabi,
                 .dragonfly,
+                .lfos,
                 .lv2,
                 .solaris,
                 .zos,
@@ -1663,6 +1667,9 @@ pub const Target = struct {
 
             // TODO revisit when multi-arch for Haiku is available
             .haiku => return copy(&result, "/system/runtime_loader"),
+
+            // TODO see also LLVM LFOS patches
+            .lfos => return result,
 
             // TODO go over each item in this list and either move it to the above list, or
             // implement the standard dynamic linker path code for it.

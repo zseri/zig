@@ -5494,6 +5494,7 @@ pub const CType = enum {
             },
 
             .linux,
+            .lfos,
             .macos,
             .freebsd,
             .netbsd,

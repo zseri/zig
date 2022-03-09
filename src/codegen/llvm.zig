@@ -95,6 +95,7 @@ pub fn targetTriple(allocator: Allocator, target: std.Target) ![:0]u8 {
         .ios => "ios",
         .kfreebsd => "kfreebsd",
         .linux => "linux",
+        .lfos => "lf-os",
         .lv2 => "lv2",
         .macos => "macosx",
         .netbsd => "netbsd",
